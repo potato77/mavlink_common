@@ -1,0 +1,11 @@
+<launch>
+	<node pkg="mavlink_common" type="mavlink_node" name="mavlink_node" output="screen">
+		<param name="use_udp" value="true" type="bool"/>
+		<param name="uart_name" value="/dev/ttyUSB0" type="string"/>
+		<param name="baudrate" value="57600" type="int"/>
+		<!-- <param name="udp_ip" value="udp://:14540@localhost:14557" type="char"/> -->
+		<param name="udp_ip" value="127.0.0.1" type="string"/>
+		<param name="udp_port" value="14540" type="int"/>
+	</node>
+</launch>
+

@@ -1,0 +1,53 @@
+<launch>
+	<!-- 启动PX4中的SITL功能 -->
+	<!-- 这里的环境变量将传递到rcS启动脚本中-->
+	<!-- 模型选择 -->
+	<env name="PX4_SIM_MODEL" value="solo" />
+	<!-- 估计器参数选择 -->
+    <env name="PX4_ESTIMATOR" value="ekf2_vision" />
+	<!-- 仿真速度因子 1.0代表与真实时间同步，大于1加快仿真速度，小于1则减慢 （电脑性能较差，可选择减小该参数）-->
+	<env name="PX4_SIM_SPEED_FACTOR" value="1.0" />
+	
+	
+	<!-- PX4 configs -->
+    <arg name="interactive" default="true"/>
+    <!-- PX4 SITL -->
+	<arg unless="$(arg interactive)" name="px4_command_arg1" value="-d"/>
+    <arg     if="$(arg interactive)" name="px4_command_arg1" value=""/>
+    <!-- <node name="sitl" pkg="px4" type="px4" output="screen" args="$(find px4)/ROMFS/px4fmu_common -s etc/init.d-posix/rcS $(arg px4_command_arg1)" required="true"/> -->
+	<node name="sitl" pkg="px4" type="px4" output="screen" args="$(find px4)/ROMFS/px4fmu_common -s etc/init.d-posix/rcS $(arg px4_command_arg1)"/>
+
+	<!-- 启动Gazebo -->
+	<!-- Gazebo configs -->
+    <arg name="gui" default="true"/>
+	<arg name="world" default="$(find prometheus_gazebo)/worlds/empty.world"/>
+    <!-- Gazebo sim -->
+    <include file="$(find gazebo_ros)/launch/empty_world.launch">
+        <arg name="gui" value="$(arg gui)"/>
+        <arg name="world_name" value="$(arg world)"/>
+    </include>
+
+	<!-- Spawn vehicle model -->
+	<!-- https://github.com/ros-simulation/gazebo_ros_pkgs/blob/kinetic-devel/gazebo_ros/scripts/spawn_model -->
+    <arg name="x" default="0.0"/>
+    <arg name="y" default="0.0"/>
+    <arg name="z" default="0.1"/>
+	<arg name="R" default="0"/>
+    <arg name="P" default="0"/>
+    <arg name="Y" default="0.0"/>
+	<arg name="sdf" default="$(find prometheus_gazebo)/models/P300_basic/P300_basic.sdf"/>
+	<arg name="model" default="P300_basic"/>
+	<node name="$(anon vehicle_spawn)" pkg="gazebo_ros" type="spawn_model" output="screen" 
+		args="-sdf -file $(arg sdf) -model $(arg model) -x $(arg x) -y $(arg y) -z $(arg z) -R $(arg R) -P $(arg P) -Y $(arg Y)">
+	</node>
+
+	<node pkg="mavlink_common" type="mavlink_node" name="mavlink_node" output="screen" launch-prefix="gnome-terminal --">
+		<param name="use_udp" value="true" type="bool"/>
+		<param name="uart_name" value="/dev/ttyUSB0" type="string"/>
+		<param name="baudrate" value="57600" type="int"/>
+		<!-- <param name="udp_ip" value="udp://:14540@localhost:14557" type="char"/> -->
+		<param name="udp_ip" value="127.0.0.1" type="string"/>
+		<param name="udp_port" value="14540" type="int"/>
+	</node>
+</launch>
+
