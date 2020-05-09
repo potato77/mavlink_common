@@ -132,10 +132,12 @@ MAVLINK_HELPER bool mavlink_signature_check(mavlink_signing_t *signing,
 	if (signing == NULL) {
 		return true;
 	}
-        const uint8_t *p = (const uint8_t *)&msg->magic;
+	const uint8_t *p = (const uint8_t *)&msg->magic;
 	const uint8_t *psig = msg->signature;
-        const uint8_t *incoming_signature = psig+7;
+	//msg的签名帧校验位
+	const uint8_t *incoming_signature = psig+7;
 	mavlink_sha256_ctx ctx;
+	//根据传入进来的signing中的密钥计算得到的签名帧校验位
 	uint8_t signature[6];
 	uint16_t i;
         
@@ -148,13 +150,17 @@ MAVLINK_HELPER bool mavlink_signature_check(mavlink_signing_t *signing,
 	mavlink_sha256_update(&ctx, msg->ck, 2);
 	//加入link_id及时间戳
 	mavlink_sha256_update(&ctx, psig, 1+6);
+	//将计算出来的签名存入signature
 	mavlink_sha256_final_48(&ctx, signature);
 
-
 	if (memcmp(signature, incoming_signature, 6) != 0) {
+		printf("Signature ： no ! \n");
 		return false;
+	}else
+	{
+		printf("Signature ： yes ! \n");
 	}
-
+	
 	// now check timestamp
 	// 检查时间戳
 	union tstamp {
@@ -287,21 +293,6 @@ MAVLINK_HELPER uint16_t mavlink_finalize_message_buffer(mavlink_message_t* msg, 
 				    (const uint8_t *)buf, header_len,
 				    (const uint8_t *)_MAV_PAYLOAD(msg), msg->len,
 				    (const uint8_t *)_MAV_PAYLOAD(msg)+(uint16_t)msg->len);
-		// printf("message signed\n");
-		// printf("%X\n",msg->signature);
-		// printf("signature: %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x\n",
-        //  msg->signature[0] & 0xff, msg->signature[1] & 0xff, msg->signature[2] & 0xff,
-        //  msg->signature[3] & 0xff, msg->signature[4] & 0xff, msg->signature[5] & 0xff,
-		//  msg->signature[6] & 0xff, msg->signature[7] & 0xff, msg->signature[8] & 0xff,
-		//  msg->signature[9] & 0xff, msg->signature[10] & 0xff, msg->signature[11] & 0xff,
-		//  msg->signature[12] & 0xff);
-
-		// printf("signature: %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x\n",
-        //  msg->signature[0] , msg->signature[1] , msg->signature[2] ,
-        //  msg->signature[3] , msg->signature[4] , msg->signature[5] ,
-		//  msg->signature[6] , msg->signature[7] , msg->signature[8] ,
-		//  msg->signature[9] , msg->signature[10] , msg->signature[11] ,
-		//  msg->signature[12] );
 	}
 	
 	return msg->len + header_len + 2 + signature_len;
@@ -316,11 +307,10 @@ MAVLINK_HELPER uint16_t mavlink_finalize_message_chan(mavlink_message_t* msg, ui
 	mavlink_signing_t signing;
 	memset(&signing, 0, sizeof(signing));
 	//密钥读取
-
 	memcpy(signing.secret_key, secret_key_test, 32);
 	signing.link_id = (uint8_t)chan;
 	//时间戳，单位是ms。怎么获得当前时间？
-	uint64_t timestamp_test = 1;
+	uint64_t timestamp_test = 123456789;
 	signing.timestamp = timestamp_test; 
 	signing.flags = MAVLINK_SIGNING_FLAG_SIGN_OUTGOING;
 	//signing.accept_unsigned_callback = accept_unsigned_callback;

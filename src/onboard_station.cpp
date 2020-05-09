@@ -77,6 +77,20 @@ void timerCallback2(const ros::TimerEvent& e, Generic_Port *port)
     mavlink_msg_local_position_ned_encode(system_id, component_id, &message, &local_position_ned);
 
     int len = port->write_message(message);
+
+	char buf[300];
+
+	// Translate message to buffer
+	unsigned len2 = mavlink_msg_to_send_buffer((uint8_t*)buf, &message);
+
+    printf("Sending a new message, length is %u.\n ", len2);
+    for (int i=0; i<len2; i++) 
+    {
+        printf("%02X - ", (uint8_t)buf[i]);
+    }
+    printf("\n");
+
+
 }
 
 void timerCallback3(const ros::TimerEvent& e, Generic_Port *port)
@@ -142,14 +156,14 @@ int main(int argc, char **argv)
 
     //至此初始化结束，缺省了关闭串口的初始化
     // 发送心跳包
-    ros::Timer timer1 = nh.createTimer(ros::Duration(1.0), boost::bind(&timerCallback1,_1,port));
+    //ros::Timer timer1 = nh.createTimer(ros::Duration(1.0), boost::bind(&timerCallback1,_1,port));
     // 发送local_position_ned
-    ros::Timer timer2 = nh.createTimer(ros::Duration(0.1), boost::bind(&timerCallback2,_1,port));
+    ros::Timer timer2 = nh.createTimer(ros::Duration(1.0), boost::bind(&timerCallback2,_1,port));
     // 发送姿态
-    ros::Timer timer3 = nh.createTimer(ros::Duration(0.1), boost::bind(&timerCallback3,_1,port));
+    //ros::Timer timer3 = nh.createTimer(ros::Duration(1.0), boost::bind(&timerCallback3,_1,port));
 
     // 频率
-    ros::Rate rate(1.0);
+    ros::Rate rate(100.0);
 
     while(ros::ok())
     {
@@ -183,7 +197,7 @@ void read_messages(Autopilot_Interface &api)
     mavlink_vision_position_estimate_t vision_est = messages.vision_est;
     printf("Got message VISION_POSITION_ESTIMATE \n");
     printf("    time_in_msg:     %lu  (us)\n", vision_est.usec);
-    printf("    time_in_local:   %lu  (ms)\n", messages.time_stamps.vision_est );
+    printf("    time_in_local:   %lu  (us)\n", messages.time_stamps.vision_est );
     printf("    vision_est:  %f %f %f (m)\n", vision_est.x, vision_est.y, vision_est.z );
 
     printf("\n");

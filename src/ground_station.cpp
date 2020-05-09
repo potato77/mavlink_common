@@ -31,6 +31,16 @@
 #include <nav_msgs/Odometry.h>
 #include <geometry_msgs/Point.h>
 
+static const uint8_t secret_key_ground[32] = {
+    0x42, 0x71, 0xb5, 0xe9,
+    0x42, 0x71, 0xb5, 0xe9,
+    0x42, 0x71, 0xb5, 0xe9,
+    0x42, 0x71, 0xb5, 0xe9,
+    0x42, 0x71, 0xb5, 0xe9,
+    0x42, 0x71, 0xb5, 0xe9,
+    0x42, 0x71, 0xb5, 0xe9,
+    0x42, 0x71, 0xb5, 0xe8
+};
 
 using std::string;
 using namespace std;
@@ -107,18 +117,18 @@ int main(int argc, char **argv)
 	}
 
 	//Instantiate an autopilot interface object
-    Autopilot_Interface autopilot_interface(port);
+    //Autopilot_Interface autopilot_interface(port);
 
 	/*
 	 * Start the port and autopilot_interface
 	 * This is where the port is opened, and read and write threads are started.
 	 */
 	port->start();
-	autopilot_interface.start();
+	//autopilot_interface.start();
 
     //至此初始化结束，缺省了关闭串口的初始化
 
-    ros::Subscriber gazebo_sub = nh.subscribe<nav_msgs::Odometry>("/prometheus/ground_truth/p300_basic", 100, boost::bind(&gazebo_cb,_1,port));
+    //ros::Subscriber gazebo_sub = nh.subscribe<nav_msgs::Odometry>("/prometheus/ground_truth/p300_basic", 100, boost::bind(&gazebo_cb,_1,port));
     ros::Subscriber sp_sub = nh.subscribe<geometry_msgs::Point>("/setpoint", 100, sp_cb);
 
     //初始起飞点
@@ -127,21 +137,78 @@ int main(int argc, char **argv)
     setpoint.z = -1.0;
 
     // 频率
-    ros::Rate rate(1.0);
+    ros::Rate rate(10.0);
 
-    // 启动offboard模式
-	autopilot_interface.enable_offboard_control();
-	usleep(100); // give some time to let it sink in
-
-	// 自主起飞
-    // 解锁
-    autopilot_interface.arm_disarm(true);
-    usleep(100); // give some time to let it sink in
+    
 
     while(ros::ok())
     {
-        send_messages(autopilot_interface);
-        read_messages(autopilot_interface);
+        // send_messages(autopilot_interface);
+        // read_messages(autopilot_interface);
+
+        bool success;               // receive success flag
+        Time_Stamps this_timestamps;
+
+        // ----------------------------------------------------------------------
+        //   READ MESSAGE
+        // ----------------------------------------------------------------------
+        mavlink_message_t message;
+        success = port->read_message(message);
+
+		if( success )
+		{
+			// Handle Message ID
+			switch (message.msgid)
+			{
+				case MAVLINK_MSG_ID_LOCAL_POSITION_NED:
+				{
+
+                    mavlink_signing_t signing;
+                    memset(&signing, 0, sizeof(signing));
+                    //密钥读取
+                    memcpy(signing.secret_key, secret_key_ground, 32);
+
+                    mavlink_signing_streams_t signing_streams;
+                    memset(&signing_streams, 0, sizeof(signing_streams));
+
+                    bool check_signature = mavlink_signature_check(&signing, &signing_streams,&message);
+
+                    if(check_signature)
+                    {
+                        printf("All good ! \n");
+                    }
+
+                    mavlink_local_position_ned_t pos;
+					mavlink_msg_local_position_ned_decode(&message, &(pos));
+                    
+                    printf("Got message LOCAL_POSITION_NED \n");
+                    printf("    magic:          %02X    \n", message.magic );
+                    printf("    len:            %02X    \n", message.len );
+                    printf("    incompat_flags: %02X    \n", message.incompat_flags );
+                    printf("    compat_flags:   %02X    \n", message.compat_flags );
+                    printf("    seq:            %02X    \n", message.seq );
+                    printf("    sysid:          %02X    \n", message.sysid );
+                    printf("    compid:         %02X    \n", message.compid );
+                    printf("    msgid:          %02X    \n", message.msgid );
+                    printf("    ckecksum:       %02X-%02X    \n", message.ck[0],message.ck[1] );
+                    printf("    link id:        %02X    \n", message.signature[0] );
+                    printf("    time stamp:     %02X-%02X-%02X-%02X-%02X-%02X    \n", message.signature[1], message.signature[2], message.signature[3], message.signature[4], message.signature[5], message.signature[6] );
+                    printf("    signature:      %02X-%02X-%02X-%02X-%02X-%02X    \n", message.signature[7], message.signature[8], message.signature[9], message.signature[10], message.signature[11], message.signature[12] );
+                    printf("    payload:   \n" );
+                    printf("    time_in_msg:    %u    (ms)\n", pos.time_boot_ms );
+                    printf("    pos  (NED):     %f %f %f (m)\n", pos.x, pos.y, pos.z );
+                    printf("\n");
+
+                    
+
+					break;
+				}
+            }
+        }else
+        {
+            //printf("No message !!! \n");
+        }
+        
 
         //回调一次 更新传感器状态
         ros::spinOnce();
@@ -191,7 +258,7 @@ void read_messages(Autopilot_Interface &api)
     mavlink_highres_imu_t imu = messages.highres_imu;
     printf("Got message HIGHRES_IMU \n");
     printf("    time_in_msg:     %lu  (us)\n", imu.time_usec);
-    printf("    time_in_local:   %lu  (ms)\n", messages.time_stamps.highres_imu );
+    printf("    time_in_local:   %lu  (us)\n", messages.time_stamps.highres_imu );
     printf("    acc  (NED):  % f % f % f (m/s^2)\n", imu.xacc , imu.yacc , imu.zacc );
     printf("    gyro (NED):  % f % f % f (rad/s)\n", imu.xgyro, imu.ygyro, imu.zgyro);
     printf("    mag  (NED):  % f % f % f (Ga)\n"   , imu.xmag , imu.ymag , imu.zmag );

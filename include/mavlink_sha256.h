@@ -96,6 +96,7 @@ static const uint32_t mavlink_sha256_constant_256[64] = {
     0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208,
     0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
 };
+
 //一个uint8 是1一个字节，1个十六进制是4bit
 static const uint8_t secret_key_test[32] = {
     0x42, 0x71, 0xb5, 0xe9,
