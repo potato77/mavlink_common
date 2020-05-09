@@ -20,7 +20,7 @@
 using namespace std;
 
 uint64_t
-get_time_usec()
+get_time_usec_own()
 {
 	static struct timeval _time_stamp;
 	gettimeofday(&_time_stamp, NULL);

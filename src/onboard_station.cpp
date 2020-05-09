@@ -63,7 +63,7 @@ void timerCallback2(const ros::TimerEvent& e, Generic_Port *port)
 {
     // 发送当前位置
     mavlink_local_position_ned_t local_position_ned = { 0 };
-    local_position_ned.time_boot_ms = (uint32_t) (get_time_usec()/1000);
+    local_position_ned.time_boot_ms = (uint32_t) get_time_msec();
     local_position_ned.x  = 1.0;
     local_position_ned.y  = 2.0;
     local_position_ned.z  = 3.0;
@@ -78,18 +78,34 @@ void timerCallback2(const ros::TimerEvent& e, Generic_Port *port)
 
     int len = port->write_message(message);
 
-	char buf[300];
+	// char buf[300];
+	// // Translate message to buffer
+	// unsigned len2 = mavlink_msg_to_send_buffer((uint8_t*)buf, &message);
 
-	// Translate message to buffer
-	unsigned len2 = mavlink_msg_to_send_buffer((uint8_t*)buf, &message);
-
-    printf("Sending a new message, length is %u.\n ", len2);
-    for (int i=0; i<len2; i++) 
-    {
-        printf("%02X - ", (uint8_t)buf[i]);
-    }
+    // printf("Sending a new message, length is %u.\n ", len2);
+    // for (int i=0; i<len2; i++) 
+    // {
+    //     printf("%02X - ", (uint8_t)buf[i]);
+    // }
+    // printf("\n");
+    printf("Sending message LOCAL_POSITION_NED \n");
+    printf("    magic:          %02X    \n", message.magic );
+    printf("    len:            %02X    \n", message.len );
+    printf("    incompat_flags: %02X    \n", message.incompat_flags );
+    printf("    compat_flags:   %02X    \n", message.compat_flags );
+    printf("    seq:            %02X    \n", message.seq );
+    printf("    sysid:          %02X    \n", message.sysid );
+    printf("    compid:         %02X    \n", message.compid );
+    printf("    msgid:          %02X    \n", message.msgid );
+    printf("    ckecksum:       %02X-%02X    \n", message.ck[0],message.ck[1] );
+    printf("    link id:        %02X    \n", message.signature[0] );
+    printf("    time stamp:     %02X-%02X-%02X-%02X-%02X-%02X    \n", message.signature[1], message.signature[2], message.signature[3], message.signature[4], message.signature[5], message.signature[6] );
+    printf("    signature:      %02X-%02X-%02X-%02X-%02X-%02X    \n", message.signature[7], message.signature[8], message.signature[9], message.signature[10], message.signature[11], message.signature[12] );
+    printf("    payload:   \n" );
+    printf("    time_in_msg:    %u       (ms)\n", local_position_ned.time_boot_ms );
+    printf("    pos  (NED):     %f %f %f (m)\n", local_position_ned.x, local_position_ned.y, local_position_ned.z );
+    printf("    vel  (NED):     %f %f %f (m/s)\n", local_position_ned.vx, local_position_ned.vy, local_position_ned.vz );
     printf("\n");
-
 
 }
 
@@ -97,7 +113,7 @@ void timerCallback3(const ros::TimerEvent& e, Generic_Port *port)
 {
     // 发送当前位置
     mavlink_attitude_t attitude = { 0 };
-    attitude.time_boot_ms = (uint32_t) (get_time_usec()/1000);
+    attitude.time_boot_ms = (uint32_t) get_time_msec();
     attitude.roll  = 0.1;
     attitude.pitch  = 0.2;
     attitude.yaw  = 0.3;

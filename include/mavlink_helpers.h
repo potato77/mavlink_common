@@ -5,7 +5,16 @@
 #include "mavlink_types.h"
 #include "mavlink_conversions.h"
 #include <stdio.h>
+#include <time.h>
+#include <sys/time.h>
 
+uint64_t
+get_time_msec()
+{
+	static struct timeval _time_stamp;
+	gettimeofday(&_time_stamp, NULL);
+	return (_time_stamp.tv_sec*1000000 + _time_stamp.tv_usec)/1000;
+}
 #ifndef MAVLINK_HELPER
 #define MAVLINK_HELPER
 #endif
@@ -162,7 +171,7 @@ MAVLINK_HELPER bool mavlink_signature_check(mavlink_signing_t *signing,
 	}
 	
 	// now check timestamp
-	// 检查时间戳
+	// 检查时间戳,tstamp为msg的时间戳
 	union tstamp {
 	    uint64_t t64;
 	    uint8_t t8[8];
@@ -176,7 +185,7 @@ MAVLINK_HELPER bool mavlink_signature_check(mavlink_signing_t *signing,
 	}
 	
 	// find stream
-	// ？？ 检查
+	// 
 	for (i=0; i<signing_streams->num_signing_streams; i++) {
 		if (msg->sysid == signing_streams->stream[i].sysid &&
 		    msg->compid == signing_streams->stream[i].compid &&
@@ -184,13 +193,19 @@ MAVLINK_HELPER bool mavlink_signature_check(mavlink_signing_t *signing,
 			break;
 		}
 	}
-	if (i == signing_streams->num_signing_streams) {
+	if (i == signing_streams->num_signing_streams) 
+	{
 		if (signing_streams->num_signing_streams >= MAVLINK_MAX_SIGNING_STREAMS) {
 			// over max number of streams
+			printf("over max number of streams! \n");
 			return false;
 		}
 		// new stream. Only accept if timestamp is not more than 1 minute old
-		if (tstamp.t64 + 6000*1000UL < signing->timestamp) {
+		// from wiki : The timestamp is more than 1 minute (6,000,000) behind the local system’s timestamp. then discard
+		if (tstamp.t64 + 6000*1000UL  < signing->timestamp ) {
+			printf("time msg : %lu! \n", tstamp.t64+6000*1000UL);
+			printf("time now : %lu! \n", signing->timestamp);
+			printf("Only accept if timestamp is not more than 1 minute old! \n");
 			return false;
 		}
 		// add new stream
@@ -198,17 +213,23 @@ MAVLINK_HELPER bool mavlink_signature_check(mavlink_signing_t *signing,
 		signing_streams->stream[i].compid = msg->compid;
 		signing_streams->stream[i].link_id = link_id;
 		signing_streams->num_signing_streams++;
+		printf("add a new signing_streams! \n");
 	} else {
 		union tstamp last_tstamp;
 		last_tstamp.t64 = 0;
 		memcpy(last_tstamp.t8, signing_streams->stream[i].timestamp_bytes, 6);
+		// 若msg时间戳 小于等于 上一时刻时间戳，则检验失败
 		if (tstamp.t64 <= last_tstamp.t64) {
 			// repeating old timestamp
+			printf("Timestamp ： no ! \n");
 			return false;
+		}else{
+			printf("Timestamp ： yes ! \n");
 		}
 	}
 
 	// remember last timestamp
+	// 储存时间戳
 	memcpy(signing_streams->stream[i].timestamp_bytes, psig+1, 6);
 
 	// our next timestamp must be at least this timestamp
@@ -310,8 +331,8 @@ MAVLINK_HELPER uint16_t mavlink_finalize_message_chan(mavlink_message_t* msg, ui
 	memcpy(signing.secret_key, secret_key_test, 32);
 	signing.link_id = (uint8_t)chan;
 	//时间戳，单位是ms。怎么获得当前时间？
-	uint64_t timestamp_test = 123456789;
-	signing.timestamp = timestamp_test; 
+	uint64_t timestamp_now = get_time_msec();
+	signing.timestamp = timestamp_now; 
 	signing.flags = MAVLINK_SIGNING_FLAG_SIGN_OUTGOING;
 	//signing.accept_unsigned_callback = accept_unsigned_callback;
 

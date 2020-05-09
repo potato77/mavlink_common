@@ -39,8 +39,12 @@ static const uint8_t secret_key_ground[32] = {
     0x42, 0x71, 0xb5, 0xe9,
     0x42, 0x71, 0xb5, 0xe9,
     0x42, 0x71, 0xb5, 0xe9,
-    0x42, 0x71, 0xb5, 0xe8
+    0x42, 0x71, 0xb5, 0xe9
 };
+
+mavlink_signing_t signing;
+mavlink_signing_streams_t signing_streams;
+
 
 using std::string;
 using namespace std;
@@ -139,19 +143,31 @@ int main(int argc, char **argv)
     // 频率
     ros::Rate rate(10.0);
 
-    
+    //密钥初始化及读取
+    memset(&signing, 0, sizeof(signing));
+    memcpy(signing.secret_key, secret_key_ground, 32);
 
+
+    //签名stream初始化
+    memset(&signing_streams, 0, sizeof(signing_streams));
+    signing_streams.num_signing_streams = 0;
+//     signing_streams.stream
+    
+// typedef struct __mavlink_signing_streams {
+//     uint16_t num_signing_streams;
+//     struct __mavlink_signing_stream {
+//         uint8_t link_id;              ///< ID of the link (MAVLINK_CHANNEL)
+//         uint8_t sysid;                ///< Remote system ID
+//         uint8_t compid;               ///< Remote component ID
+//         uint8_t timestamp_bytes[6];   ///< Timestamp, in microseconds since UNIX epoch GMT
+//     } stream[MAVLINK_MAX_SIGNING_STREAMS];
+// } mavlink_signing_streams_t;
     while(ros::ok())
     {
         // send_messages(autopilot_interface);
         // read_messages(autopilot_interface);
-
         bool success;               // receive success flag
-        Time_Stamps this_timestamps;
 
-        // ----------------------------------------------------------------------
-        //   READ MESSAGE
-        // ----------------------------------------------------------------------
         mavlink_message_t message;
         success = port->read_message(message);
 
@@ -162,22 +178,6 @@ int main(int argc, char **argv)
 			{
 				case MAVLINK_MSG_ID_LOCAL_POSITION_NED:
 				{
-
-                    mavlink_signing_t signing;
-                    memset(&signing, 0, sizeof(signing));
-                    //密钥读取
-                    memcpy(signing.secret_key, secret_key_ground, 32);
-
-                    mavlink_signing_streams_t signing_streams;
-                    memset(&signing_streams, 0, sizeof(signing_streams));
-
-                    bool check_signature = mavlink_signature_check(&signing, &signing_streams,&message);
-
-                    if(check_signature)
-                    {
-                        printf("All good ! \n");
-                    }
-
                     mavlink_local_position_ned_t pos;
 					mavlink_msg_local_position_ned_decode(&message, &(pos));
                     
@@ -195,10 +195,23 @@ int main(int argc, char **argv)
                     printf("    time stamp:     %02X-%02X-%02X-%02X-%02X-%02X    \n", message.signature[1], message.signature[2], message.signature[3], message.signature[4], message.signature[5], message.signature[6] );
                     printf("    signature:      %02X-%02X-%02X-%02X-%02X-%02X    \n", message.signature[7], message.signature[8], message.signature[9], message.signature[10], message.signature[11], message.signature[12] );
                     printf("    payload:   \n" );
-                    printf("    time_in_msg:    %u    (ms)\n", pos.time_boot_ms );
+                    printf("    time_in_msg:    %u       (ms)\n", pos.time_boot_ms );
                     printf("    pos  (NED):     %f %f %f (m)\n", pos.x, pos.y, pos.z );
+                    printf("    vel  (NED):     %f %f %f (m/s)\n", pos.vx, pos.vy, pos.vz );
                     printf("\n");
 
+                    uint64_t timestamp_test = get_time_msec();
+	                signing.timestamp = timestamp_test; 
+
+                    bool check_signature = mavlink_signature_check(&signing, &signing_streams,&message);
+
+                    if(check_signature)
+                    {
+                        printf("check_signature pass ! \n");
+                    }else
+                    {
+                        printf("check_signature not pass ! \n");
+                    }
                     
 
 					break;
@@ -211,9 +224,9 @@ int main(int argc, char **argv)
         
 
         //回调一次 更新传感器状态
-        ros::spinOnce();
-
-        rate.sleep();
+        //ros::spinOnce();
+        usleep(100);
+        //rate.sleep();
     }
 
     return 0;
