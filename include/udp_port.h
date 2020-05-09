@@ -103,7 +103,7 @@ class UDP_Port: public Generic_Port
 public:
 
 	UDP_Port();
-	UDP_Port(const char *target_ip_, int udp_port_);
+	UDP_Port(const char *target_ip_, int udp_port_, int tx_port_);
 	virtual ~UDP_Port();
 
 	int read_message(mavlink_message_t &message);

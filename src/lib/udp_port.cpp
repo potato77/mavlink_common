@@ -65,11 +65,12 @@
 //   Con/De structors
 // ------------------------------------------------------------------------------
 UDP_Port::
-UDP_Port(const char *target_ip_, int udp_port_)
+UDP_Port(const char *target_ip_, int udp_port_, int tx_port_)
 {
 	initialize_defaults();
 	target_ip = target_ip_;
 	rx_port  = udp_port_;
+	tx_port  = tx_port_;
 	is_open = false;
 }
 
@@ -258,6 +259,7 @@ start()
 	//   CONNECTED!
 	// --------------------------------------------------------------------------
 	printf("Listening to %s:%i\n", target_ip, rx_port);
+	printf("Sending to %s:%i\n", target_ip, tx_port);
 	lastStatus.packet_rx_drop_count = 0;
 
 	is_open = true;
@@ -314,9 +316,11 @@ _read_port(uint8_t &cp)
 		struct sockaddr_in addr;
 		len = sizeof(struct sockaddr_in);
 		result = recvfrom(sock, &buff, BUFF_LEN, 0, (struct sockaddr *)&addr, &len);
+		//未指定UPD tx_port时，读取tx_port
 		if(tx_port < 0){
 			if(strcmp(inet_ntoa(addr.sin_addr), target_ip) == 0){
 				tx_port = ntohs(addr.sin_port);
+				printf("The new tx_port :%i\n", tx_port);
 				printf("Got first packet, sending to %s:%i\n", target_ip, rx_port);
 			}else{
 				printf("ERROR: Got packet from %s:%i but listening on %s\n", inet_ntoa(addr.sin_addr), ntohs(addr.sin_port), target_ip);

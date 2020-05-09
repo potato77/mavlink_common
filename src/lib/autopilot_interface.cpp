@@ -382,6 +382,14 @@ read_messages()
 					break;
 				}
 
+				case MAVLINK_MSG_ID_VISION_POSITION_ESTIMATE:
+				{
+					//printf("MAVLINK_MSG_ID_VISION_POSITION_ESTIMATE\n");
+					mavlink_msg_vision_position_estimate_decode(&message, &(current_messages.vision_est));
+					current_messages.time_stamps.vision_est = get_time_usec();
+					this_timestamps.vision_est = current_messages.time_stamps.vision_est;
+					break;
+				}
 				default:
 				{
 					// printf("Warning, did not handle message id %i\n",message.msgid);

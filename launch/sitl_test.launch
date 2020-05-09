@@ -47,7 +47,8 @@
 		<param name="baudrate" value="57600" type="int"/>
 		<!-- <param name="udp_ip" value="udp://:14540@localhost:14557" type="char"/> -->
 		<param name="udp_ip" value="127.0.0.1" type="string"/>
-		<param name="udp_port" value="14540" type="int"/>
+		<param name="rx_port" value="14540" type="int"/>
+		<param name="tx_port" value="14580" type="int"/>
 	</node>
 </launch>
 

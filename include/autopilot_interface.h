@@ -154,6 +154,8 @@ struct Time_Stamps
 	uint64_t position_target_global_int;
 	uint64_t highres_imu;
 	uint64_t attitude;
+	uint64_t vision_est;
+	uint64_t position_setpoint;
 
 	void
 	reset_timestamps()
@@ -168,6 +170,8 @@ struct Time_Stamps
 		position_target_global_int = 0;
 		highres_imu = 0;
 		attitude = 0;
+		vision_est = 0;
+		position_setpoint = 0;
 	}
 
 };
@@ -209,6 +213,12 @@ struct Mavlink_Messages {
 
 	// Attitude
 	mavlink_attitude_t attitude;
+
+	// Vision Esitimate Position
+	mavlink_vision_position_estimate_t vision_est;
+
+	// 
+	mavlink_set_position_target_local_ned_t position_setpoint;
 
 	// System Parameters?
 

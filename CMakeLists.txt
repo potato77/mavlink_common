@@ -61,15 +61,31 @@ include_directories(
 add_library(serial_port src/lib/serial_port.cpp)
 add_library(udp_port src/lib/udp_port.cpp)
 add_library(autopilot_interface src/lib/autopilot_interface.cpp)
-###### Main File ##########
 
-##px4_pos_controller.cpp
+###### Main File ##########
 add_executable(mavlink_node src/mavlink_node.cpp)
-add_dependencies(mavlink_node prometheus_control_gencpp) 
+add_dependencies(mavlink_node mavlink_common_gencpp) 
 target_link_libraries(mavlink_node ${catkin_LIBRARIES})
 target_link_libraries(mavlink_node serial_port)
 target_link_libraries(mavlink_node udp_port)
 target_link_libraries(mavlink_node autopilot_interface)
+
+
+
+add_executable(ground_station src/ground_station.cpp)
+add_dependencies(ground_station mavlink_common_gencpp) 
+target_link_libraries(ground_station ${catkin_LIBRARIES})
+target_link_libraries(ground_station serial_port)
+target_link_libraries(ground_station udp_port)
+target_link_libraries(ground_station autopilot_interface)
+
+
+add_executable(onboard_station src/onboard_station.cpp)
+add_dependencies(onboard_station mavlink_common_gencpp) 
+target_link_libraries(onboard_station ${catkin_LIBRARIES})
+target_link_libraries(onboard_station serial_port)
+target_link_libraries(onboard_station udp_port)
+target_link_libraries(onboard_station autopilot_interface)
 #############
 ## Install ##
 #############

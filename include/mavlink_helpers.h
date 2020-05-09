@@ -287,8 +287,8 @@ MAVLINK_HELPER uint16_t mavlink_finalize_message_buffer(mavlink_message_t* msg, 
 				    (const uint8_t *)buf, header_len,
 				    (const uint8_t *)_MAV_PAYLOAD(msg), msg->len,
 				    (const uint8_t *)_MAV_PAYLOAD(msg)+(uint16_t)msg->len);
-		printf("message signed\n");
-		printf("%X\n",msg->signature);
+		// printf("message signed\n");
+		// printf("%X\n",msg->signature);
 		// printf("signature: %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x\n",
         //  msg->signature[0] & 0xff, msg->signature[1] & 0xff, msg->signature[2] & 0xff,
         //  msg->signature[3] & 0xff, msg->signature[4] & 0xff, msg->signature[5] & 0xff,
@@ -296,12 +296,12 @@ MAVLINK_HELPER uint16_t mavlink_finalize_message_buffer(mavlink_message_t* msg, 
 		//  msg->signature[9] & 0xff, msg->signature[10] & 0xff, msg->signature[11] & 0xff,
 		//  msg->signature[12] & 0xff);
 
-		printf("signature: %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x\n",
-         msg->signature[0] , msg->signature[1] , msg->signature[2] ,
-         msg->signature[3] , msg->signature[4] , msg->signature[5] ,
-		 msg->signature[6] , msg->signature[7] , msg->signature[8] ,
-		 msg->signature[9] , msg->signature[10] , msg->signature[11] ,
-		 msg->signature[12] );
+		// printf("signature: %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x\n",
+        //  msg->signature[0] , msg->signature[1] , msg->signature[2] ,
+        //  msg->signature[3] , msg->signature[4] , msg->signature[5] ,
+		//  msg->signature[6] , msg->signature[7] , msg->signature[8] ,
+		//  msg->signature[9] , msg->signature[10] , msg->signature[11] ,
+		//  msg->signature[12] );
 	}
 	
 	return msg->len + header_len + 2 + signature_len;

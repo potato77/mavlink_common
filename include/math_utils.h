@@ -14,8 +14,18 @@
 
 #include <Eigen/Eigen>
 #include <math.h>
+#include <time.h>
+#include <sys/time.h>
 
 using namespace std;
+
+uint64_t
+get_time_usec()
+{
+	static struct timeval _time_stamp;
+	gettimeofday(&_time_stamp, NULL);
+	return _time_stamp.tv_sec*1000000 + _time_stamp.tv_usec;
+}
 
 // 四元数转欧拉角
 Eigen::Vector3d quaternion_to_rpy2(const Eigen::Quaterniond &q)
