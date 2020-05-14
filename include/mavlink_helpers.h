@@ -325,17 +325,21 @@ MAVLINK_HELPER uint16_t mavlink_finalize_message_chan(mavlink_message_t* msg, ui
 	mavlink_status_t *status = mavlink_get_channel_status(chan);
 	
 	//在编码中，启动签名机制
+	//声明一个签名帧结构体
 	mavlink_signing_t signing;
 	memset(&signing, 0, sizeof(signing));
-	//密钥读取
+	//读取指定秘钥
 	memcpy(signing.secret_key, secret_key_test, 32);
+	//link id赋值
 	signing.link_id = (uint8_t)chan;
-	//时间戳，单位是ms。怎么获得当前时间？
+	//时间戳赋值，单位是ms
 	uint64_t timestamp_now = get_time_msec();
 	signing.timestamp = timestamp_now; 
+	//标志位设定
 	signing.flags = MAVLINK_SIGNING_FLAG_SIGN_OUTGOING;
+	//这个标志位暂时不会用，可以不设置
 	//signing.accept_unsigned_callback = accept_unsigned_callback;
-
+	//将签名帧结构体复制到状态结构体中
 	status->signing = &signing;
 
 	return mavlink_finalize_message_buffer(msg, system_id, component_id, status, min_length, length, crc_extra);
