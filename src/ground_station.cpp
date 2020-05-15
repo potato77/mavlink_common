@@ -11,6 +11,7 @@
 #include "udp_port.h"
 #include "autopilot_interface.h"
 #include "math_utils.h"
+#include "mavlink_aes.c"
 #include <signal.h>
 #include <time.h>
 #include <sys/time.h>
@@ -44,6 +45,13 @@ static const uint8_t secret_key_ground[32] = {
 
 mavlink_signing_t signing;
 mavlink_signing_streams_t signing_streams;
+void print_hex(BYTE str[], int len)
+{
+	int idx;
+
+	for(idx = 0; idx < len; idx++)
+		printf("%02x", str[idx]);
+}
 
 
 using std::string;
@@ -178,8 +186,35 @@ int main(int argc, char **argv)
 			{
 				case MAVLINK_MSG_ID_LOCAL_POSITION_NED:
 				{
-                    mavlink_local_position_ned_t pos;
-					mavlink_msg_local_position_ned_decode(&message, &(pos));
+                    mavlink_local_position_ned_t local_position_ned_cipher;
+                    mavlink_local_position_ned_t local_position_ned_plain = { 0 };
+					mavlink_msg_local_position_ned_decode(&message, &(local_position_ned_cipher));
+
+                    // 初始化
+                    //256 bit密码
+                    BYTE key[1][32] = {
+                        {0x60,0x3d,0xeb,0x10,0x15,0xca,0x71,0xbe,0x2b,0x73,0xae,0xf0,0x85,0x7d,0x77,0x81,0x1f,0x35,0x2c,0x07,0x3b,0x61,0x08,0xd7,0x2d,0x98,0x10,0xa3,0x09,0x14,0xdf,0xf4}
+                    };
+                    WORD key_schedule[60];
+                    BYTE iv[1][16] = {
+                        {0xf0,0xf1,0xf2,0xf3,0xf4,0xf5,0xf6,0xf7,0xf8,0xf9,0xfa,0xfb,0xfc,0xfd,0xfe,0xff},
+                    };
+                    BYTE ciphertext[1][MAVLINK_MSG_ID_LOCAL_POSITION_NED_LEN];
+                    BYTE enc_buf[MAVLINK_MSG_ID_LOCAL_POSITION_NED_LEN];
+                    
+                    // 设置密钥
+                    aes_key_setup(key[0], key_schedule, 256);
+                    // 将mavlink payload结构体转为密文
+                    memcpy(&ciphertext, &local_position_ned_cipher, MAVLINK_MSG_ID_LOCAL_POSITION_NED_LEN);
+                    //解密
+                    aes_decrypt_ctr(ciphertext[0], MAVLINK_MSG_ID_LOCAL_POSITION_NED_LEN, enc_buf, key_schedule, 256, iv[0]);
+                    // printf("\nCiphertext   : ");
+                    // print_hex(ciphertext[0], MAVLINK_MSG_ID_LOCAL_POSITION_NED_LEN);
+                    // printf("\n-decrypted to: ");
+                    // print_hex(enc_buf, MAVLINK_MSG_ID_LOCAL_POSITION_NED_LEN);
+
+                    memcpy(&local_position_ned_plain, &enc_buf, MAVLINK_MSG_ID_LOCAL_POSITION_NED_LEN);
+                    //pass = pass && !memcmp(enc_buf, plaintext[0], MAVLINK_MSG_ID_LOCAL_POSITION_NED_LEN);
                     
                     printf("Got message LOCAL_POSITION_NED \n");
                     printf("    magic:          %02X    \n", message.magic );
@@ -194,10 +229,14 @@ int main(int argc, char **argv)
                     printf("    link id:        %02X    \n", message.signature[0] );
                     printf("    time stamp:     %02X-%02X-%02X-%02X-%02X-%02X    \n", message.signature[1], message.signature[2], message.signature[3], message.signature[4], message.signature[5], message.signature[6] );
                     printf("    signature:      %02X-%02X-%02X-%02X-%02X-%02X    \n", message.signature[7], message.signature[8], message.signature[9], message.signature[10], message.signature[11], message.signature[12] );
-                    printf("    payload:   \n" );
-                    printf("    time_in_msg:    %u       (ms)\n", pos.time_boot_ms );
-                    printf("    pos  (NED):     %f %f %f (m)\n", pos.x, pos.y, pos.z );
-                    printf("    vel  (NED):     %f %f %f (m/s)\n", pos.vx, pos.vy, pos.vz );
+                    printf("    payload_cipher:   \n" );
+                    printf("    time_in_msg:    %u       (ms)\n", local_position_ned_cipher.time_boot_ms );
+                    printf("    pos  (NED):     %f %f %f (m)\n", local_position_ned_cipher.x, local_position_ned_cipher.y, local_position_ned_cipher.z );
+                    printf("    vel  (NED):     %f %f %f (m/s)\n", local_position_ned_cipher.vx, local_position_ned_cipher.vy, local_position_ned_cipher.vz );
+                    printf("    payload_plain:   \n" );
+                    printf("    time_in_msg:    %u       (ms)\n", local_position_ned_plain.time_boot_ms );
+                    printf("    pos  (NED):     %f %f %f (m)\n", local_position_ned_plain.x, local_position_ned_plain.y, local_position_ned_plain.z );
+                    printf("    vel  (NED):     %f %f %f (m/s)\n", local_position_ned_plain.vx, local_position_ned_plain.vy, local_position_ned_plain.vz );
                     printf("\n");
 
                     uint64_t timestamp_test = get_time_msec();

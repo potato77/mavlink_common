@@ -72,7 +72,9 @@ void timerCallback1(const ros::TimerEvent& e, Generic_Port *port)
 void timerCallback2(const ros::TimerEvent& e, Generic_Port *port)
 {
     // 发送当前位置
+    // 本地信息转储为mavlink payload结构体
     mavlink_local_position_ned_t local_position_ned = { 0 };
+    mavlink_local_position_ned_t local_position_ned_cipher = { 0 };
     local_position_ned.time_boot_ms = (uint32_t) get_time_msec();
     local_position_ned.x  = 1.0;
     local_position_ned.y  = 2.0;
@@ -81,22 +83,21 @@ void timerCallback2(const ros::TimerEvent& e, Generic_Port *port)
     local_position_ned.vy = 5.0;
     local_position_ned.vz = 6.0;
 
+    // 明文加密，使用AES算法
 
-    // 明文加密
-    WORD key_schedule[60];
-	BYTE enc_buf[128];
-    BYTE enc_out_buf[128];
-	BYTE plaintext[1][28];
-	BYTE ciphertext[1][28];
-	BYTE iv[1][16] = {
-		{0xf0,0xf1,0xf2,0xf3,0xf4,0xf5,0xf6,0xf7,0xf8,0xf9,0xfa,0xfb,0xfc,0xfd,0xfe,0xff},
-	};
+    // 初始化
     //256 bit密码
 	BYTE key[1][32] = {
 		{0x60,0x3d,0xeb,0x10,0x15,0xca,0x71,0xbe,0x2b,0x73,0xae,0xf0,0x85,0x7d,0x77,0x81,0x1f,0x35,0x2c,0x07,0x3b,0x61,0x08,0xd7,0x2d,0x98,0x10,0xa3,0x09,0x14,0xdf,0xf4}
 	};
+    WORD key_schedule[60];
+	BYTE iv[1][16] = {
+		{0xf0,0xf1,0xf2,0xf3,0xf4,0xf5,0xf6,0xf7,0xf8,0xf9,0xfa,0xfb,0xfc,0xfd,0xfe,0xff},
+	};
+    BYTE plaintext[1][MAVLINK_MSG_ID_LOCAL_POSITION_NED_LEN];
+	BYTE enc_buf[MAVLINK_MSG_ID_LOCAL_POSITION_NED_LEN];
 
-	printf("* CTR mode:\n");
+    // 设置密钥
 	aes_key_setup(key[0], key_schedule, 256);
 
 	// printf(  "Key          : ");
@@ -104,74 +105,54 @@ void timerCallback2(const ros::TimerEvent& e, Generic_Port *port)
 	// printf("\nIV           : ");
 	// print_hex(iv[0], 16);
 
+    // 将mavlink payload结构体转为明文
     memcpy(&plaintext, &local_position_ned, MAVLINK_MSG_ID_LOCAL_POSITION_NED_LEN);
 
+    // 使用AES算法加密，并将密文存储到enc_buf中
 	aes_encrypt_ctr(plaintext[0], MAVLINK_MSG_ID_LOCAL_POSITION_NED_LEN, enc_buf, key_schedule, 256, iv[0]);
-	printf("\nPlaintext    : ");
-	print_hex(plaintext[0], MAVLINK_MSG_ID_LOCAL_POSITION_NED_LEN);
-	printf("\n-encrypted to: ");
-	print_hex(enc_buf, MAVLINK_MSG_ID_LOCAL_POSITION_NED_LEN);
+	// printf("\nPlaintext    : ");
+	// print_hex(plaintext[0], MAVLINK_MSG_ID_LOCAL_POSITION_NED_LEN);
+	// printf("\n-encrypted to: ");
+	// print_hex(enc_buf, MAVLINK_MSG_ID_LOCAL_POSITION_NED_LEN);
+    // printf("\n\n");
 
-    memcpy(&ciphertext, &enc_buf, MAVLINK_MSG_ID_LOCAL_POSITION_NED_LEN);
+    memcpy(&local_position_ned_cipher, &enc_buf, MAVLINK_MSG_ID_LOCAL_POSITION_NED_LEN);
 
-    aes_decrypt_ctr(ciphertext[0], MAVLINK_MSG_ID_LOCAL_POSITION_NED_LEN, enc_out_buf, key_schedule, 256, iv[0]);
-	printf("\nCiphertext   : ");
-	print_hex(ciphertext[0], MAVLINK_MSG_ID_LOCAL_POSITION_NED_LEN);
-	printf("\n-decrypted to: ");
-	print_hex(enc_out_buf, MAVLINK_MSG_ID_LOCAL_POSITION_NED_LEN);
-
-    mavlink_local_position_ned_t local_position_ned2 = { 0 };
-
-    memcpy(&local_position_ned2, &enc_out_buf, MAVLINK_MSG_ID_LOCAL_POSITION_NED_LEN);
-
-    printf("\n\n");
-
-    printf("    pos  (NED):     %f %f %f (m)\n", local_position_ned2.x, local_position_ned2.y, local_position_ned2.z );
-    printf("    vel  (NED):     %f %f %f (m/s)\n", local_position_ned2.vx, local_position_ned2.vy, local_position_ned2.vz );
-	//pass = pass && !memcmp(enc_buf, plaintext[0], MAVLINK_MSG_ID_LOCAL_POSITION_NED_LEN);
-
-	//printf("\n\n");
-	//printf("\n\n");
-
-
-
-
+    // 将加密后的密文编码为mavlink_message标准结构体
     mavlink_message_t message;
     int	system_id    = 1; // system id
     int	component_id = 1; // component id
-    mavlink_msg_local_position_ned_encode(system_id, component_id, &message, &local_position_ned);
+    mavlink_msg_local_position_ned_encode(system_id, component_id, &message, &local_position_ned_cipher);
 
+    // 发送
     int len = port->write_message(message);
 
 	// char buf[300];
 	// // Translate message to buffer
 	// unsigned len2 = mavlink_msg_to_send_buffer((uint8_t*)buf, &message);
 
-    // printf("Sending a new message, length is %u.\n ", len2);
-    // for (int i=0; i<len2; i++) 
-    // {
-    //     printf("%02X - ", (uint8_t)buf[i]);
-    // }
-    // printf("\n");
+    printf("Sending message LOCAL_POSITION_NED \n");
+    printf("    magic:          %02X    \n", message.magic );
+    printf("    len:            %02X    \n", message.len );
+    printf("    incompat_flags: %02X    \n", message.incompat_flags );
+    printf("    compat_flags:   %02X    \n", message.compat_flags );
+    printf("    seq:            %02X    \n", message.seq );
+    printf("    sysid:          %02X    \n", message.sysid );
+    printf("    compid:         %02X    \n", message.compid );
+    printf("    msgid:          %02X    \n", message.msgid );
+    printf("    ckecksum:       %02X-%02X    \n", message.ck[0],message.ck[1] );
+    printf("    link id:        %02X    \n", message.signature[0] );
+    printf("    time stamp:     %02X-%02X-%02X-%02X-%02X-%02X    \n", message.signature[1], message.signature[2], message.signature[3], message.signature[4], message.signature[5], message.signature[6] );
+    printf("    signature:      %02X-%02X-%02X-%02X-%02X-%02X    \n", message.signature[7], message.signature[8], message.signature[9], message.signature[10], message.signature[11], message.signature[12] );
+    printf("    payload_cipher:   \n" );
+    printf("    time_in_msg:    %u       (ms)\n", local_position_ned_cipher.time_boot_ms );
+    printf("    pos  (NED):     %f %f %f (m)\n", local_position_ned_cipher.x, local_position_ned_cipher.y, local_position_ned_cipher.z );
+    printf("    vel  (NED):     %f %f %f (m/s)\n", local_position_ned_cipher.vx, local_position_ned_cipher.vy, local_position_ned_cipher.vz );
+    printf("    payload_plain:   \n" );
+    printf("    time_in_msg:    %u       (ms)\n", local_position_ned.time_boot_ms );
+    printf("    pos  (NED):     %f %f %f (m)\n", local_position_ned.x, local_position_ned.y, local_position_ned.z );
+    printf("    vel  (NED):     %f %f %f (m/s)\n", local_position_ned.vx, local_position_ned.vy, local_position_ned.vz );
 
-
-    // printf("Sending message LOCAL_POSITION_NED \n");
-    // printf("    magic:          %02X    \n", message.magic );
-    // printf("    len:            %02X    \n", message.len );
-    // printf("    incompat_flags: %02X    \n", message.incompat_flags );
-    // printf("    compat_flags:   %02X    \n", message.compat_flags );
-    // printf("    seq:            %02X    \n", message.seq );
-    // printf("    sysid:          %02X    \n", message.sysid );
-    // printf("    compid:         %02X    \n", message.compid );
-    // printf("    msgid:          %02X    \n", message.msgid );
-    // printf("    ckecksum:       %02X-%02X    \n", message.ck[0],message.ck[1] );
-    // printf("    link id:        %02X    \n", message.signature[0] );
-    // printf("    time stamp:     %02X-%02X-%02X-%02X-%02X-%02X    \n", message.signature[1], message.signature[2], message.signature[3], message.signature[4], message.signature[5], message.signature[6] );
-    // printf("    signature:      %02X-%02X-%02X-%02X-%02X-%02X    \n", message.signature[7], message.signature[8], message.signature[9], message.signature[10], message.signature[11], message.signature[12] );
-    // printf("    payload:   \n" );
-    // printf("    time_in_msg:    %u       (ms)\n", local_position_ned.time_boot_ms );
-    // printf("    pos  (NED):     %f %f %f (m)\n", local_position_ned.x, local_position_ned.y, local_position_ned.z );
-    // printf("    vel  (NED):     %f %f %f (m/s)\n", local_position_ned.vx, local_position_ned.vy, local_position_ned.vz );
     printf("\n");
 
 }
