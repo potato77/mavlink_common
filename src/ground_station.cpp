@@ -32,6 +32,7 @@
 #include <nav_msgs/Odometry.h>
 #include <geometry_msgs/Point.h>
 
+// hash密钥
 static const uint8_t secret_key_ground[32] = {
     0x42, 0x71, 0xb5, 0xe9,
     0x42, 0x71, 0xb5, 0xe9,
